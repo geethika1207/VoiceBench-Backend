@@ -23,7 +23,8 @@ class Interview(Base):
     topics = Column(String, nullable = False)
     status = Column(String, nullable = False)
     created_at = Column(TIMESTAMP(timezone=True), nullable = False, server_default = text('now()')) 
-    Reviews = relationship("Response", back_populates="submission", cascade="all, delete-orphan")
+    overall_analysis = relationship("interview_analysis", back_populates="interview_session", cascade="all, delete-orphan")
+    user_response = relationship("Response", back_populates="question_response", cascade="all, delete-orphan")
 
 class Response(Base):
     __tablename__ = "Interview_response"
@@ -36,7 +37,8 @@ class Response(Base):
     evaluation = Column(String, nullable = True)
     marks = Column(INTEGER, nullable = True)
     created_at = Column(TIMESTAMP(timezone=True), nullable = False, server_default = text('now()'))
-    submission = relationship("Interview", back_populates="Reviews")
+    question_response = relationship("Interview", back_populates="user_response")
+
 
 class interview_analysis(Base):
     __tablename__ = "analysis"
@@ -50,3 +52,4 @@ class interview_analysis(Base):
     overall_difficulty = Column(String, nullable=False)
     marks = Column(INTEGER, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable = False, server_default = text('now()'))
+    interview_session = relationship("Interview", back_populates="overall_analysis")
