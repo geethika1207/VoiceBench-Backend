@@ -223,4 +223,17 @@ The response must exactly follow this schema:
     if not raw:
         raise Exception("Groq returned an empty response.")
 
-    return json.loads(raw)
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+
+    if start == -1 or end == 0:
+        raise Exception(f"Groq did not return JSON:\n{raw}")
+
+    json_part = raw[start:end]
+
+    print("=" * 80)
+    print("JSON PART:")
+    print(repr(json_part))
+    print("=" * 80)
+    
+    return json.loads(json_part)
