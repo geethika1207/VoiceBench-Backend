@@ -13,7 +13,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://voice-bench-frontend-ddwh.vercel.app/",
+        "https://voice-bench-frontend-uzql.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
