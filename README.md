@@ -51,3 +51,65 @@ The system employs a streaming architecture consisting of Speech-to-Text (STT), 
 | Deployment | Render (Backend) + Vercel (Frontend) |
 | Data Storage | PostgreSQL |
 | Authentication | JWT Authentication |
+
+---
+
+# 🏗 System Architecture
+
+VoiceBench is built on a **low-latency event-driven architecture** that enables continuous real-time voice interaction. Each component is independently responsible for speech processing, interview orchestration, AI reasoning, and voice synthesis, resulting in a modular and scalable conversational pipeline.
+
+<p align="center">
+<img src="images/VoiceBench_Architecture.png" width="100%">
+</p>
+
+<p align="center">
+<b>Figure 1.</b> End-to-end event-driven architecture powering real-time adaptive voice conversations.
+</p>
+
+---
+
+### ⚙️ Architectural Principles
+
+- ⚡ Event-Driven Processing
+- 🎙 Continuous Voice Streaming
+- 🧠 Adaptive Interview Orchestration
+- 🔄 Modular AI Service Integration
+- 📡 Real-Time Response Generation
+- 💾 Persistent Conversation History
+
+---
+
+### 🧩 Core Components
+
+| Layer | Responsibility |
+|--------|----------------|
+| 🎤 Client | Captures user voice and streams audio |
+| 🗣 Deepgram STT | Real-time speech recognition |
+| ⚙ FastAPI Engine | Interview orchestration & state management |
+| 🤖 Groq Llama 3.3 70B | Adaptive question generation |
+| 🔊 Microsoft Edge TTS | Natural speech synthesis |
+| 🗄 Supabase | Session persistence & interview history |
+
+---
+
+# 🔄 Voice Processing Pipeline
+
+VoiceBench processes every conversation through a streaming voice pipeline that continuously transforms speech into contextual AI interactions while maintaining interview state and minimizing response latency.
+
+<p align="center">
+<img src="images/Voice.png" width="100%">
+</p>
+
+<p align="center">
+<b>Figure 1.</b> End-to-end event-driven architecture powering real-time adaptive voice conversations.
+</p>
+---
+
+### 🚀 Pipeline Characteristics
+
+- ⚡ Streaming speech recognition
+- 🧠 Context-aware AI reasoning
+- 🎯 Adaptive follow-up questioning
+- ⏱ Automatic silence recovery
+- 🔄 Continuous conversational flow
+- 🎙 Natural voice playback
