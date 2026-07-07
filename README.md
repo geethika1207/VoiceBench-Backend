@@ -278,3 +278,144 @@ VoiceBench is designed around low-latency conversational interaction rather than
 | Smooth voice interaction   | Continuous TTS/STT coordination  |
 | Stable session management  | Stateful interview orchestration |
 | Scalable backend           | Asynchronous FastAPI services    |
+
+---
+
+## 📦 Installation & Local Deployment
+
+### Prerequisites
+
+- Python **3.11+**
+- Node.js **18+**
+- npm
+- Git
+
+---
+
+### Clone Repository
+
+```bash
+git clone https://github.com/<your-username>/VoiceBench.git
+cd VoiceBench
+```
+
+---
+
+### Backend Setup
+
+```bash
+cd backend
+
+python -m venv venv
+
+## Windows
+venv\Scripts\activate
+
+## Linux/macOS
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+---
+
+### Frontend Setup
+
+```bash
+cd frontend
+
+npm install
+```
+
+---
+
+### Configure Environment
+
+Create a `.env` file inside the backend directory.
+
+```env
+GROQ_API_KEY=your_groq_api_key
+DEEPGRAM_API_KEY=your_deepgram_api_key
+JWT_SECRET_KEY=your_secret_key
+DATABASE_URL=your_database_url
+```
+
+---
+
+### Run Application
+
+Backend
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Frontend
+
+```bash
+npm run dev
+```
+
+| Component | URL |
+|------------|------------------------|
+| Frontend | http://localhost:5173 |
+| Backend | http://localhost:8000 |
+
+---
+
+## 🔌 API Reference
+
+VoiceBench exposes a lightweight REST API for authentication, interview orchestration, speech processing, and evaluation.
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/auth/register` | Register user |
+| POST | `/auth/login` | User authentication |
+| POST | `/interview/start` | Start interview session |
+| POST | `/interview/question` | Generate next question |
+| POST | `/speech/stt` | Speech-to-Text |
+| POST | `/speech/tts` | Text-to-Speech |
+| POST | `/interview/evaluate` | Evaluate response |
+| GET | `/history` | Interview history |
+| GET | `/report/{id}` | Interview report |
+
+---
+
+### Authentication
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+---
+
+### Sample Response
+
+```json
+{
+  "score": 8.7,
+  "difficulty": "Medium",
+  "next_question": "...",
+  "feedback": "..."
+}
+```
+
+All endpoints communicate using **JSON** and are secured using **JWT-based authentication**.
+
+---
+
+## Conclusion
+
+VoiceBench demonstrates how modern conversational AI systems can be engineered using an event-driven architecture to deliver responsive, low-latency voice interactions.
+
+By integrating speech recognition, adaptive reasoning, real-time evaluation, and speech synthesis into a unified pipeline, the project explores practical approaches for building scalable AI-powered educational platforms.
+
+This repository reflects an end-to-end implementation of modern AI application engineering—from backend architecture and frontend interaction design to asynchronous voice processing and adaptive conversation management.
+
+---
+
+**Developed by Geethika Tammineni**
+
+Aspiring Software Engineer | Backend Development | AI Systems
+
+If you found this project interesting, feel free to connect, contribute, or share feedback.
