@@ -241,7 +241,7 @@ VoiceBench dynamically adjusts interview complexity based on the candidate's pre
 | Consecutive Weak Responses | Recovery Questions  |
 
 <p align="center">
-<img src="images/state_machine.png" width="100%">
+<img src="images/Adoptive_voice_difficulty.png" width="100%">
 </p>
 
 <p align="center">
