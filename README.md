@@ -245,7 +245,7 @@ VoiceBench dynamically adjusts interview complexity based on the candidate's pre
 </p>
 
 <p align="center">
-<b>Figure 3.</b> Internal finite-state machine governing the VoiceBench interview lifecycle. 
+<b>Figure 3.</b> VoiceBench Adoptive Voice Difficulty. 
 </p>
 
 ---
