@@ -12,6 +12,7 @@ from ..services.vad_service import VoiceActivityDetector
 from ..services.buffer_service import AudioBuffer
 import os
 import asyncio
+import time
 
 os.makedirs("temp", exist_ok=True)
 
@@ -89,7 +90,7 @@ async def interview_socket(
     await websocket.accept()
 
     print("Hello")
-    
+
     interview = (
         db.query(models.Interview)
         .filter(models.Interview.id == id)
@@ -116,8 +117,8 @@ async def interview_socket(
             {"error": "Interview not found"}
         )
         await websocket.close()
-        return  
-      
+        return
+
     current_difficulty = recent_response.difficulty or "Beginner"
 
 
@@ -153,9 +154,17 @@ async def interview_socket(
 
             chunk = await deepgram_queue.get()
 
-            await stt.send_chunk(chunk)
+            try:
 
-            deepgram_queue.task_done()
+                await stt.send_chunk(chunk)
+
+            except Exception as e:
+
+                print("DEEPGRAM WORKER ERROR:", e)
+
+            finally:
+
+                deepgram_queue.task_done()
 
 
 
@@ -168,11 +177,19 @@ async def interview_socket(
 
             chunk = await vad_queue.get()
 
-            if vad.is_speech_finished(chunk):           # statement under if executes only if the speech completed by the user
+            try:
 
-                vad_finished.set()                      # VAD signal ON 
+                if vad.is_speech_finished(chunk):           # statement under if executes only if the speech completed by the user
 
-            vad_queue.task_done()
+                    vad_finished.set()                      # VAD signal ON
+
+            except Exception as e:
+
+                print("VAD WORKER ERROR:", e)
+
+            finally:
+
+                vad_queue.task_done()
 
 
 
@@ -185,9 +202,17 @@ async def interview_socket(
 
             chunk = await buffer_queue.get()
 
-            buffer.add_chunk(chunk)
+            try:
 
-            buffer_queue.task_done()
+                buffer.add_chunk(chunk)
+
+            except Exception as e:
+
+                print("BUFFER WORKER ERROR:", e)
+
+            finally:
+
+                buffer_queue.task_done()
 
 
 
@@ -207,130 +232,201 @@ async def interview_socket(
     )
 
 
-    idle_count = 0 
-    
+    idle_count = 0
+
+    pipeline_start = None
+
     try:
 
         while True:
 
-            try:
+            # Wait until frontend finishes playing AI audio
+            message = await websocket.receive()
 
-                chunk = await asyncio.wait_for(
+            if message["type"] == "websocket.receive":
 
-                    websocket.receive_bytes(),
+                if "text" in message:
 
-                    timeout=5
-
-                )
-                
-                await deepgram_queue.put(chunk)
-
-                await vad_queue.put(chunk)
-
-                await buffer_queue.put(chunk)
-
-            except asyncio.TimeoutError:
-
-                if not vad_finished.is_set():
-
-                    idle_count += 1
-
-                    if idle_count == 1:
-
-                        await websocket.send_text(
-                            "Are you still there?"
-                        )
-
+                    if message["text"] != "audio_finished":
                         continue
 
-                    else:
+                elif "bytes" in message:
+                    continue
 
-                        await websocket.send_text(
-                            "Moving to next question..."
-                        )
+            # NOW start waiting for user speech
+            while True:
 
-                        vad_finished.set()
+                try:
 
-            if not vad_finished.is_set():
-                continue
-            
-            # Reset for next question
+                    chunk = await asyncio.wait_for(
+                        websocket.receive_bytes(),
+                        timeout=5
+                    )
 
-            vad_finished.clear()
+                    if pipeline_start is None:
+                        pipeline_start = time.perf_counter()
 
-            idle_count = 0
+                    idle_count = 0
 
-            transcript = await stt.get_transcript()
+                    await deepgram_queue.put(chunk)
 
-            await stt.reset_transcript()
+                    await vad_queue.put(chunk)
 
-            vad.reset()
+                    await buffer_queue.put(chunk)
 
-            try:
+                except asyncio.TimeoutError:
 
-                result = await asyncio.wait_for(
-                    ai_analysis_prompt(
-                        recent_response.question,
-                        transcript,
-                        interview.topics,
-                        current_difficulty
-                    ),
-                    timeout=20
+                    if not vad_finished.is_set():
+
+                        idle_count += 1
+
+                        if idle_count == 1:
+
+                            await websocket.send_text(
+                                "Are you still there?"
+                            )
+
+                            continue
+
+                        else:
+
+                            await websocket.send_text(
+                                "Moving to next question..."
+                            )
+
+                            vad_finished.set()
+
+                if not vad_finished.is_set():
+                    continue
+
+                # Reset for next question
+
+                vad_finished.clear()
+
+                idle_count = 0
+
+                await deepgram_queue.join()
+
+                await vad_queue.join()
+
+                stt_start = time.perf_counter()
+
+                transcript = await stt.get_transcript()
+
+                stt_latency = (time.perf_counter() - stt_start) * 1000
+
+                await stt.reset_transcript()
+
+                vad.reset()
+
+                try:
+
+                    llm_start = time.perf_counter()
+
+                    result = await asyncio.wait_for(
+                        ai_analysis_prompt(
+                            recent_response.question,
+                            transcript,
+                            interview.topics,
+                            current_difficulty
+                        ),
+                        timeout=20
+                    )
+
+                    llm_latency = (time.perf_counter() - llm_start) * 1000
+
+                except asyncio.TimeoutError:
+
+                    await websocket.send_text(
+                        "AI server is busy. Please wait..."
+                    )
+
+                    continue
+
+                # ==============================
+                # Save
+
+                # Update current question
+                recent_response.answer = transcript
+                recent_response.marks = result.get("score")
+                recent_response.evaluation = result.get("evaluation")
+                recent_response.difficulty = current_difficulty
+
+                #Insert next question
+
+                next_response = models.Response(
+                    interview_id=id,
+                    question=result["next_question"],
+                    difficulty=result["difficulty"]
                 )
-                
 
-            except asyncio.TimeoutError:
+                db_start = time.perf_counter()
 
-                await websocket.send_text(
-                    "AI server is busy. Please wait..."
+                db.add(next_response)
+                db.commit()
+                db.refresh(next_response)
+
+                db_latency = (time.perf_counter() - db_start) * 1000
+
+                recent_response = next_response
+
+                current_difficulty = next_response.difficulty
+
+                # ==============================
+                # TTS
+
+                tts_start = time.perf_counter()
+
+                filename = await text_to_speech(
+                    result["next_question"]
                 )
 
-                return
+                tts_latency = (time.perf_counter() - tts_start) * 1000
 
-            # ==============================
-            # Save
+                send_start = time.perf_counter()
 
-            # Update current question
-            recent_response.answer = transcript
-            recent_response.marks = result.get("score")
-            recent_response.evaluation = result.get("evaluation")
-            recent_response.difficulty = current_difficulty
+                print("Sending next question...")
+                print("Next question sent successfully")
 
-            #Insert next question
+                await websocket.send_json({
 
-            next_response = models.Response(
-                interview_id=id,
-                question=result["next_question"],
-                difficulty=result["difficulty"]      
-            )
+                    "question": result["next_question"],
 
-            db.add(next_response)
-            db.commit()
-            db.refresh(next_response)
+                    "audio_url": f"/audio/{filename}"
 
+                })
 
-            # ==============================
-            # TTS
+                send_latency = (time.perf_counter() - send_start) * 1000
 
-            filename = await text_to_speech(
-                result["next_question"]
-            )
+                total_latency = (time.perf_counter() - pipeline_start) * 1000
 
-            await websocket.send_json({
+                print("\n==============================")
+                print(" VoiceBench Latency Report")
+                print("==============================")
+                print(f"STT        : {stt_latency:.2f} ms")
+                print(f"LLM        : {llm_latency:.2f} ms")
+                print(f"Database   : {db_latency:.2f} ms")
+                print(f"TTS        : {tts_latency:.2f} ms")
+                print(f"WebSocket  : {send_latency:.2f} ms")
+                print("------------------------------")
+                print(f"TOTAL      : {total_latency:.2f} ms")
+                print("==============================\n")
 
-                "question": result["next_question"],
+                pipeline_start = None
 
-                "audio_url": f"/audio/{filename}"
-
-            })
-
+                break  # go back to outer loop and wait for the next "audio_finished"
 
     except WebSocketDisconnect:
 
         print("Client disconnected")
 
+    except Exception as e:
+        print("SERVER ERROR:", e)
+        raise
+
     finally:
 
+        print("Closing websocket...")
         deepgram_task.cancel()
         vad_task.cancel()
         buffer_task.cancel()

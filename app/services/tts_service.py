@@ -21,4 +21,4 @@ async def text_to_speech(text: str):
 
     await communicate.save(str(output_path))
 
-    return output_path
+    return filename
